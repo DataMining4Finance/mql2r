@@ -1,0 +1,17 @@
+#!/bin/sh
+
+set -e 
+
+if [ ! -d pkg ]; then
+    echo "No directory pkg"
+    exit -1
+fi
+
+version=$(r -e'cat(as.character(read.dcf("pkg/DESCRIPTION")[,"Version"]))')
+echo "Working on version $version"
+
+"$(R_HOME)\bin\i386\R" CMD build --force pkg
+
+test -d ~/www/code/mql2r && cp -vax MQL2R_${version}.tar.gz ~/www/code/mql2r
+
+
