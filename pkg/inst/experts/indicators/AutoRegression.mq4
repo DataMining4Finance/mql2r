@@ -23,22 +23,20 @@ int init(){
    SetIndexBuffer(0, buf_prediction);
    SetIndexStyle(0, DRAW_LINE);
    SetIndexShift(0, ahead-StartFrom);
-   
-   Print("MQL2R dll version : " + RGetDllVersion());
+  
    R = RInit("", 2);
    Comment("history: " + back + " bars, method: OLS, order: " + order);
 }
 
 int deinit(){
-   RDeinit(R);
+  // RDeinit(R);
 }
 
 int start(){
    double hist[];
    double pred[];
    int i;
-   Print("MQL2R dll version : " + RGetDllVersion());
-   
+
    if (RIsBusy()){
       // last RExecuteAsync() is still not finished, do nothing.
       Print("R Is Busy");
@@ -76,7 +74,7 @@ int start(){
    
    int r = RGetXTS("histXts", rates, Bars);
    
-   Print("Num returned rates = " + r);
+   //Print("Num returned rates = " + r);
    // crunch the numbers in the background and return from the start() function
    // RIsBusy() in the next ticks will tell us when it is finished.
    RAssignInteger("ord", order);

@@ -91,6 +91,8 @@ struct handle_manager
 
 	int create_handle()
 	{
+		LOGCALL();
+
 		if(m_handles.empty())
 		{
 			logger::instance() << "Creating instance of R on thread " << GetCurrentThreadId() << std::endl;
@@ -104,6 +106,8 @@ struct handle_manager
 
 	void destroy_handle(int handle)
 	{
+		LOGCALL();
+
 		if(m_handles.find(handle) != m_handles.end())
 		{
 			m_handles.erase(handle);

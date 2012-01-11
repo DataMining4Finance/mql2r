@@ -1,119 +1,46 @@
-#property copyright "© 2010 Bernd Kreuss"
-#define MT4R_VERSION_MAJOR 1
-#define MT4R_VERSION_MINOR 3  // must change to 4
+#property copyright "© 2011 James Bates"
+#define MQL2R_VERSION_MAJOR 1
+#define MQL2R_VERSION_MINOR 3  // must change to 4
 
-/** @file
-* Metatrader-4 -> R Interface Library
-*
-*     This source is free software; you can redistribute it and/or 
-*     modify it under the terms of the GNU General Public License 
-*     as published by the Free Software Foundation; either version 2 
-*     of the License, or (at your option) any later version.
-*
-*     A commercial license and support is available upon request
-*
-* mt4R.dll allows the direct usage of the R environment
-* (The R Project for Statistical Computing, http//www.r-proect.org) 
-* from within your mql4 code. You can start an R session (one or more 
-* for each EA instance), send data to it, call R functions and get 
-* results back ino your mql4 program. Each R session will run as a 
-* separate process but the communication of the mql4 program with R 
-* will appear towards mql4 as synchronuos function calls. Behind the
-* scenes it will construct and execute small snippets of R code at 
-* the REPL, wait for the prompt to return and parse the output, very 
-* much like you would do it manually in an interactive R session.
-*
-* mt4R.mqh (this file) is the header file for mt4R.dll. Put the dll 
-* into experts/libraries and put this file into experts/include. 
-* Then use it in your EA with
-* <PRE>
-*
-*   #include <mt4R.mqh>
-*
-* </PRE>
-* The following two external variables are recommended, but of course 
-* you might also hardcode them. You must use --no-save but you 
-* MUST NOT use --slave or otherwise turn off the echo or change 
-* the default prompt or it will fail.
-* <PRE>
-*   
-*   extern string R_command = "C:\Programme\R\R-2.11.1\bin\Rterm.exe --no-save";
-*   extern int R_debuglevel = 2;
-*   
-* </PRE>
-* Debug level can be 0, 1 or 2. During development you should set it 
-* to 2 which will output every available message. A value of 1 will 
-* only output warnings and notes and a value of 0 will only output 
-* fatal errors, this is the recommended setting for production use.
-*  
-* Debug output will go to the system debug monitor. You can use 
-* the free DebugView.exe tool from microsoft to log it in real time.
-*
-* The library defines a handful of functions to directly assign and
-* read a few data types without the need for manually formatting and
-* executing snippets of R code for these purposes. Not all possible
-* data types are directly supported, for example there is no function
-* to directly assign a matrix of strings since I never saw the need 
-* to do this. The main emphasis is on vectors and matrices containing
-* only floating point values. Once you have transferred the bulk of
-* your data as vectors or matrices into the R session you can execute 
-* snippets of R code to combine them or convert them into something 
-* more complex if needed. 
-*
-* Also the main emphasis is on getting huge amounts of numeric data 
-* into the R session quickly but not the other way, since the assumption
-* is that you want to feed it with vast amounts of numerical data to 
-* crunch numbers and only need to get back a single value or a vector 
-* as a result.
-*
-* All the vector functions have a size parameter. Be very careful 
-* that the array you supply has actually the same size (bigger 
-* won't hurt but smaller is not allowed). You should always use
-* ArraySize() or ArrrayRange() for the size parameter, this will 
-* make your life much easier.
-* <PRE>
-*   // *** EXAMPLE USAGE ***
-*
-*   #include <mt4R.mqh>
-*
-*   extern string R_command = "C:\Programme\R\R-2.11.1\bin\Rterm.exe --no-save";
-*   extern int R_debuglevel = 2;
-*
-*   ;
-*
-*   int init() {
-*      rhandle = RInit(R_command, R_debuglevel);
-*   }
-*
-*   int deinit() {
-*      RDeinit(rhandle);
-*   }
-*
-*   int start() {
-*      int i;
-*      int k;
-*      double vecfoo[5];
-*      double vecbaz[5];
-* 
-*      for (i=0; i<5; i++) {
-*         vecfoo[i] = SomeThingElse(i);
-*      }
-*
-*      RAssign(rhandle, "foo", vecfoo, ArraySize(vecfoo));
-*      RExecute(rhandle, "baz <- foo * 42");
-*      k = RGetVector(rhandle, "baz", vecbaz, ArraySize(vecbaz));
-* 
-*      for (i=0; i<k; i++) {
-*         Print(vecbaz[i]);
-*      }
-*   }
-*
-*   double SomeThingElse(int n) {
-*      [...]
-*   }
-*
-* </PRE>
-*/
+#import "kernel32.dll"
+   int GetEnvironmentVariableA(string lpName, int& lpBuffer[], int nSize);
+   int SetEnvironmentVariableA(string name,string value);
+   int CreateProcessA(int    lpApplicationName,
+                   string lpCommandLine,
+                   int    lpProcessAttributes,
+                   int    lpThreadAttributes,
+                   int    bInheritHandles,
+                   int    dwCreationFlags,
+                   int    lpEnvironment,
+                   int    lpCurrentDirectory,
+                   int    &lpStartupInfo[],
+                   int    &lpProcessInformation[]);
+   int CreatePipe(int &hReadPipe[],int &hWritePipe[],int &lpPipeAttributes[],int nSize);
+   int SetHandleInformation(int hObject,int dwMask,int dwFlags);
+   int WriteFile( int fileHandle, string buffer, int bytes, int& numOfBytes[], int overlapped );
+   int ReadFile( int fileHandle, int& buffer[], int bytes, int& numOfBytes[], int overlapped );
+   int CloseHandle( int handle);
+#import
+
+#define SW_HIDE             0
+#define SW_SHOWNORMAL       1
+#define SW_NORMAL           1
+#define SW_SHOWMINIMIZED    2
+#define SW_SHOWMAXIMIZED    3
+#define SW_MAXIMIZE         3
+#define SW_SHOWNOACTIVATE   4
+#define SW_SHOW             5
+#define SW_MINIMIZE         6
+#define SW_SHOWMINNOACTIVE  7
+#define SW_SHOWNA           8
+#define SW_RESTORE          9
+#define SW_SHOWDEFAULT      10
+#define SW_FORCEMINIMIZE    11
+#define SW_MAX              11
+
+#import "shell32.dll"
+   int ShellExecuteA(int hWnd,int lpVerb,string lpFile,int lpParameters,int lpDirectory,int nCmdShow);
+#import
 
 #import "libMQL2R.dll"
    /**
@@ -278,6 +205,208 @@
    void RPrint(string expression);
 #import
 
+string initString(int len)
+{
+   string rval;
+   int i;
+   for(i=0;i<len;i++)
+   {
+      rval = rval + ".";
+   }
+   
+   return(rval);
+}
+
+string bufferToString(int buffer[])
+   {
+   string text="";
+   
+   for (int i=0; i<ArraySize(buffer); i++)
+      {
+      int curr = buffer[i];
+      text = text + CharToStr(curr & 0x000000FF)
+         +CharToStr(curr >> 8 & 0x000000FF)
+         +CharToStr(curr >> 16 & 0x000000FF)
+         +CharToStr(curr >> 24 & 0x000000FF);
+      }
+   return (text);
+   }     
+   
+//+------------------------------------------------------------------+
+string StringReplace(string str, string str1, string str2)  {
+//+------------------------------------------------------------------+
+// Usage: replaces every occurrence of str1 with str2 in str
+  string outstr = "";
+  for (int i=0; i<StringLen(str); i++)   {
+    if (StringSubstr(str,i,StringLen(str1)) == str1)  {
+      outstr = outstr + str2;
+      i += StringLen(str1) - 1;
+    }
+    else
+      outstr = outstr + StringSubstr(str,i,1);
+  }
+  return(outstr);
+}   
+   
+string GetEnvironmentVariable(string name)
+{
+   int buffer[1024];
+   string rval;
+   int result;
+   ArrayInitialize(buffer,0);
+   result = GetEnvironmentVariableA(name,buffer,ArraySize(buffer)*4);
+   rval = bufferToString(buffer);
+   
+   //Print(name+"="+rval);
+   
+   return(rval);
+}
+
+string CmdExe(string lpCommandLine)
+{
+   int /*SECURITY_ATTRIBUTES*/ sa[ 3];
+   int /*STARTUPINFO*/         si[17];
+   int /*PROCESS_INFORMATION*/ pi[ 4];
+
+   ArrayInitialize(sa,0);
+   ArrayInitialize(si,0);
+   ArrayInitialize(pi,0);
+
+   //Set up structs;
+   sa[0] = 12;
+   sa[1] = 0; //TRUE
+   sa[2] = 1;
+
+   int hChildStdoutRd[1];
+   int hChildStdoutWr[1]; 
+   int hChildStdinRd[1];
+   int hChildStdinWr[1]; 
+
+   int result=1;
+   //Print("hChildStdoutRd="+hChildStdoutRd[0]+",hChildStdoutWr="+hChildStdoutWr[0]+",hChildStdinRd="+hChildStdinRd[0]+",hChildStdinWr="+hChildStdinWr[0]);
+   
+   
+   result = CreatePipe(hChildStdoutRd,hChildStdoutWr,sa,0);
+   if(result == 0)
+   {
+      Print("Failed to create child process stdout pipe");
+   }
+   
+   result = SetHandleInformation( hChildStdoutRd[0], 1, 0); //SetHandleInformation( hChildStdoutRd, HANDLE_FLAG_INHERIT, 0);
+   if(result == 0)
+   {
+      Print("Failed to SetHandleInformation on hChildStdoutRd");
+   }
+   
+   
+   result = CreatePipe(hChildStdinRd,hChildStdinWr,sa,0);
+   if(result == 0)
+   {
+      Print("Failed to create child process stdin pipe");
+   }
+   result = SetHandleInformation( hChildStdinWr[0], 1, 0); //SetHandleInformation( hChildStdinWr, HANDLE_FLAG_INHERIT, 0);
+   if(result == 0)
+   {
+      Print("Failed to SetHandleInformation on hChildStdinWr");
+   }
+
+   //Print("hChildStdoutRd="+hChildStdoutRd[0]+",hChildStdoutWr="+hChildStdoutWr[0]+",hChildStdinRd="+hChildStdinRd[0]+",hChildStdinWr="+hChildStdinWr[0]);
+
+
+   /*
+      sa.cb = sizeof(STARTUPINFO); 
+      sa.hStdError = hChildStdoutWr;
+      sa.hStdOutput = hChildStdoutWr;
+      sa.hStdInput = hChildStdinRd;
+      sa.dwFlags |= STARTF_USESTDHANDLES;
+   */
+
+   si[0] = 68;
+   si[16] = hChildStdoutWr[0];
+   si[15] = hChildStdoutWr[0];
+   si[14] = hChildStdinRd[0];
+   si[11] = 0x00000100; //STARTF_USESTDHANDLES 
+   
+
+   result = CreateProcessA(0,            // module name
+                               lpCommandLine,   // command line
+                               0,              // process attributes
+                               0,              // thread attributes
+                               1,            // handle inheritance
+                               0x08000200,      // creation flags CREATE_NO_WINDOW|CREATE_NEW_PROCESS_GROUP
+                               0,            // environment block
+                               0,            // starting directory
+                               si,              // startup info
+                               pi               // process info
+                               );
+   if(result == 0)
+   {
+      Print("Failed to create child process");
+   }                            
+    
+   int buffer[1024]; 
+   ArrayInitialize(buffer,0);
+   int totalBytesRead = 0;
+   
+   int bufferSize = ArraySize(buffer) * 4;
+   bool readFinished = false;
+   string rval="";
+   int bytesRead[1];
+   
+   int bSuccess = 0;
+   
+   // Close the write end of the pipe before reading from the 
+	// read end of the pipe, to control child process execution.
+	// The pipe is assumed to have enough buffer space to hold the
+	// data the child process has already written to it.
+   
+   if (!CloseHandle(hChildStdoutWr[0])) 
+		Print("Error in CloseHandler(hChildStdoutWr[0])"); 
+   
+   for (;;) 
+	{ 
+		bSuccess = ReadFile(hChildStdoutRd[0],buffer,bufferSize,bytesRead,0);
+
+		if( ! bSuccess || bytesRead[0] == 0 )
+		{ 
+		    break; 
+		}
+
+      rval = rval + bufferToString(buffer); 
+      totalBytesRead += bytesRead[0];      
+        
+	} 
+   
+   return (rval);
+}
+
+string EscapeQuotes(string value)
+{
+   return(StringReplace(value,"\"","\\\""));
+}
+
+string RProcCmd(string cmd)
+{
+   string fullCommand = "\"" + GetEnvironmentVariable("R_HOME") + "\\bin\\i386\\RScript.exe\"" + " -e \"" + EscapeQuotes(cmd) + "\"";
+   string rval="";
+   
+   Print("MQL2R:     ",cmd);
+   
+   rval = CmdExe(fullCommand);
+
+   return(rval);
+}
+
+string AddToPath(string path,string newEntry)
+{
+   if(StringFind(path,newEntry) == -1)
+   {
+      return(path + ";" + newEntry);
+   }
+   
+   return(path);
+}
+
 /*
 * start and initialize a new R session. Call this function in init() and store 
 * the handle it returns. This will start an R session and all subsequent calls 
@@ -290,22 +419,55 @@ int RInit(string commandline, int debuglevel){
    int dll_major;
    int dll_minor;
    string error,message;
+   string path;
+   string r_home;
+   
+   path = GetEnvironmentVariable("PATH");
+   r_home = GetEnvironmentVariable("R_HOME");
+   
+   string getMQL2RInstallPathCmd = "cat(tools:::file_path_as_absolute( system.file( \"libs\", package = \"MQL2R\" )))";
+   
+   string MQL2RLIBS;
+   
+   MQL2RLIBS = RProcCmd(getMQL2RInstallPathCmd);
+   
+   if(MQL2RLIBS == "")
+   {
+      Print("Could not locate R library MQL2R is it installed?");
+      return(0);
+   }
+   else
+   {
+      MQL2RLIBS = StringReplace(MQL2RLIBS,"/","\\");
+   
+      Print("MQL2R library found at path: ",MQL2RLIBS);
+   }
+   
+   path = AddToPath(path,MQL2RLIBS + "\\i386;");
+   path = AddToPath(path,r_home + "\\bin\\i386");
+   
+   Print("Setting new PATH env var to: ",path);
+   
+   SetEnvironmentVariableA("PATH",r_home + "\bin\i386;" + path);
+   
    dll_version = RGetDllVersion();
    dll_major = dll_version >> 16;
    dll_minor = dll_version & 0xffff;
    
-   if (dll_version == MT4R_VERSION_MAJOR << 16 + MT4R_VERSION_MINOR){
-         message = "Version match mt4R.dll: " + "  -  found dll version " + dll_major + "." + dll_minor;
+   if (dll_version == MQL2R_VERSION_MAJOR << 16 + MQL2R_VERSION_MINOR){
+         message = "Version match mql2R.dll: " + "  -  found dll version " + dll_major + "." + dll_minor;
             
       Print(message);      
       return(RInit_(commandline, debuglevel));
    }else{
-      error = "Version mismatch mt4R.dll: "
-            + "expected version " + MT4R_VERSION_MAJOR + "." + MT4R_VERSION_MINOR
+      error = "Version mismatch MQL2R.dll: "
+            + "expected version " + MQL2R_VERSION_MAJOR + "." + MQL2R_VERSION_MINOR
             + "  -  found dll version " + dll_major + "." + dll_minor;
       Print(error);
       return(0);
    }
+   
+   
 }
 
 
