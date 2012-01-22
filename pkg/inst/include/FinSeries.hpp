@@ -15,9 +15,11 @@
 #include <boost/bimap.hpp>
 #include <boost/foreach.hpp>
 
+#include "logger.h"
+
 namespace FinSeries
 {
-/*
+
 template<typename T>
 void applyVisitor(const Rcpp::RObject& object,const T& visitor)
 {
@@ -75,7 +77,7 @@ struct printVisitor
 	template<int I>
 	void operator()(const typename Rcpp::traits::storage_type<I>::rtype& val) const
 	{
-		std::cout << prefix() << sexp_to_name(I) << " | " << val << std::endl;
+		logger::instance() << prefix() << sexp_to_name(I) << " | " << val << std::endl;
 	}
 
 	template<int I>
@@ -113,19 +115,19 @@ void printAttributes(const std::string& name, const Rcpp::RObject& object, int i
 
     applyVisitor(object,printVisitor(name,indentation));
 
-    std::cout << indent << "Attributes of "<< name << ":" << std::endl;
+    logger::instance() << indent << "Attributes of "<< name << ":" << std::endl;
 
     BOOST_FOREACH(const std::string& attribute, object.attributeNames())
     {
-    	std::cout << indent << attribute << std::endl;
+    	logger::instance() << indent << attribute << std::endl;
 
     	printAttributes(attribute,object.attr(attribute),indentation+1);
     }
 
 
-    std::cout << std::endl;
+    logger::instance() << std::endl;
 }
-*/
+
 class Xts
 {
 public:
@@ -137,8 +139,9 @@ public:
 			const std::vector<double>& 			lows,
 			const std::vector<double>&			closes,
 			const std::vector<double>& 			volumes,
-			const std::vector<Rcpp::Datetime>& 	times) : m_values(opens.size(),5)
+			const std::vector<Rcpp::Datetime>& 	times) : m_values(opens.size(),5),m_index(opens.size())
 	{
+		LOGCALL();
 
 		m_columns.insert(ColumnMapType::value_type(0,"Open"));
 		m_columns.insert(ColumnMapType::value_type(1,"High"));
@@ -155,6 +158,7 @@ public:
 			m_values(i,2) = lows[i];
 			m_values(i,3) = closes[i];
 			m_values(i,4) = volumes[i];
+			m_index(i) = times[i].getFractionalTimestamp();
 		}
 
 	}
@@ -162,30 +166,49 @@ public:
     // Constructor from R object.
 	Xts(SEXP xtssexp)
 	{
+			LOGCALL();
+
+			printAttributes("xtssexp",xtssexp);
+
+			//logger::instance() << "Assigning XTS" << std::endl;
+
 			m_values = xtssexp;
 
-		   //printAttributes("xts",xts);
+			//logger::instance() << "Checking is xts" << std::endl;
 
 		    if(!m_values.inherits("xts"))
 		    	throw std::range_error("Invalid class in Xts constructor");
 
+		    //logger::instance() << "getting dimnames" << std::endl;
+
 		    Rcpp::List dims = m_values.attr("dimnames");
 
-		    Rcpp::CharacterVector dimNames = dims[1];
-
-		    for(int i=0;i<dimNames.size();++i)
+		    //Ugly assumptions about dims layout made here.
+		    if(dims.length() > 0)
 		    {
-		    	m_columns.insert(ColumnMapType::value_type(i,std::string(dimNames[i])));
+		    	Rcpp::CharacterVector dimNames = dims[1];
+
+				for(int i=0;i<dimNames.length();++i)
+				{
+					m_columns.insert(ColumnMapType::value_type(i,std::string(dimNames[i])));
+				}
 		    }
 
-		    // Check for date index.
-		    Rcpp::NumericVector m_index = m_values.attr("index");
+		    //logger::instance() << "getting index" << std::endl;
 
-			//print();
+		    // Check for date index.
+		    m_index = m_values.attr("index");
+
+			print();
+
+
 	}
 
 	// Create R Object
 	operator SEXP() {
+
+		LOGCALL();
+
 		Rcpp::RObject xts;
 
 		xts = m_values;
@@ -217,36 +240,46 @@ public:
 	    indexcv[1] = "POSIXt";
 	    indexObj.attr("class") = indexcv;
 
-		//print();
+		print();
 
 		return xts;
 	}
 
 	void print()
 	{
-		for(size_t i = 0; i < m_columns.size(); i++)
+		LOGCALL();
+
+	    logger::instance() << "Index contains " << m_index.length() << " entries" << std::endl;
+
+		BOOST_FOREACH(ColumnMapType::left_const_reference i, m_columns.left)
 		{
-			std::cout 	 << m_columns.left.at(i) << ",";
+			std::cout 	 << i.second << ",";
 		}
 
 		std::cout << std::endl;
 
 		for(int i = 0; i < m_values.rows(); i++)
 		{
-			const Rcpp::Datetime& time = m_index[i];
 
-			std::cout 	 << time.getYear() << "-" << time.getMonth() << "-" << time.getDay() << ":" << time.getHours()<< ":" << time.getSeconds() << ","
-						 << m_values(i,0) << ","
-						 << m_values(i,1) << ","
-						 << m_values(i,2) << ","
-						 << m_values(i,3) << ","
-						 << m_values(i,4) << std::endl;
+			if(i < m_index.length())
+			{
+				const Rcpp::Datetime& time = m_index[i];
+
+				std::cout 	 << "[" << time.getYear() << "-" << time.getMonth() << "-" << time.getDay()
+							 << "  " << time.getHours()<< ":" <<time.getMinutes() << ":" << time.getSeconds() << "]  ";
+			}
+			for(int j = 0; j < m_values.cols(); j++)
+			{
+				std::cout << m_values(i,j) << ",";
+			}
+			std::cout << std::endl;
 	    }
 
 		std::cout << std::endl;
 	}
 
 	size_t nrows() { return m_values.rows(); }
+	size_t ncols() { return m_values.cols(); }
 
 	double operator() (int i,int j)
 	{

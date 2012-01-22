@@ -22,55 +22,6 @@
 #define MT4R_VERSION_MINOR 3l
 
 
-struct logger
-{
-	static std::ofstream& instance()
-	{
-		if(!m_instance.get())
-		{
-			//FILE *fd = fopen (filename(), "a+");
-			m_instance.reset(new std::ofstream());
-
-			m_instance->open(filename(),std::ios::app);
-		    freopen(logger::filename(),"a",stderr);
-		    freopen(logger::filename(),"a",stdout);
-
-			//HANDLE fhand = (HANDLE)_get_osfhandle(_fileno(fd));
-			//SetStdHandle(STD_OUTPUT_HANDLE,fhand);
-			//SetStdHandle(STD_ERROR_HANDLE,fhand);
-
-		}
-
-		return *m_instance;
-	}
-
-	static const char* filename()
-	{
-		return "experts/logs/MQL2R.log";
-	}
-
-private:
-	static std::auto_ptr<std::ofstream> m_instance;
-};
-
-struct scope_logger
-{
-	scope_logger(const std::string& fn) : m_fn(fn)
-	{
-		logger::instance() << "Entering " << m_fn << " called from threadid " << GetCurrentThreadId() << std::endl;
-	}
-
-	~scope_logger()
-	{
-		logger::instance() << "Leaving " << m_fn << " called from threadid " << GetCurrentThreadId() << std::endl;
-	}
-
-	const std::string m_fn;
-};
-
-#define LOGCALL() scope_logger __logger_declare(__FUNCTION__)
-//#define LOGCALL() logger::instance() << "Entering" << __FUNCTION__ << " called from threadid " << GetCurrentThreadId() << std::endl;
-
 
 struct handle_manager
 {
@@ -148,7 +99,7 @@ extern "C" {
    * is used in RInit() to make sure that this header file and
    * the dll fit together.
    */
-   int MT4_EXPFUNC RGetDllVersion()
+   int MT4_EXPFUNC RGetDllVersion_()
    {
 	   return (MT4R_VERSION_MAJOR << 16) + MT4R_VERSION_MINOR;
    }
@@ -165,11 +116,11 @@ extern "C" {
 	   {
 		   return handle_manager::instance().create_handle();
 	   } catch(std::exception& ex) {
-		   logger::instance() << "Exception caught: " << ex.what() << std::endl;
-		   throw;
+		   logger::instance() << " Exception caught: " << ex.what() << std::endl;
+		   return -1;
 	   } catch(...) {
-		   logger::instance() << "Unknown exception caught" << std::endl;
-		   throw;
+		   logger::instance() << " Unknown exception caught" << std::endl;
+		   return -1;
 	   }
 	   return 0;
    }
@@ -179,19 +130,20 @@ extern "C" {
    * Teminate the R session. Call this in your deinit() function.
    * After this the handle is no longer valid.
    */
-   void MT4_EXPFUNC RDeinit(int handle)
+   int MT4_EXPFUNC RDeinit_(int handle)
    {
 	   LOGCALL();
 
 	   try
 	   {
 		   handle_manager::instance().destroy_handle(handle);
+		   return 0;
 	   } catch(std::exception& ex) {
-		   logger::instance() << __FUNCTION__ << "Exception caught: " << ex.what() << std::endl;
-		   throw;
+		   logger::instance() << __FUNCTION__ << " Exception caught: " << ex.what() << std::endl;
+		   return -1;
 	   } catch(...) {
-		   logger::instance() << __FUNCTION__ << "Unknown exception caught" << std::endl;
-		   throw;
+		   logger::instance() << __FUNCTION__ << " Unknown exception caught" << std::endl;
+		   return -1;
 	   }
    }
 
@@ -205,7 +157,7 @@ extern "C" {
    * If R is not running anymore this library won't emit any
    * more log messages and will silently ignore all commands.
    */
-   BOOL MT4_EXPFUNC RIsRunning()
+   BOOL MT4_EXPFUNC RIsRunning_()
    {
 	   LOGCALL();
 
@@ -218,7 +170,7 @@ extern "C" {
    * return true if R is still executing a command (resulting
    * from a call to RExecuteAsync())
    */
-   BOOL MT4_EXPFUNC RIsBusy()
+   BOOL MT4_EXPFUNC RIsBusy_()
    {
 	   LOGCALL();
 	   return false;
@@ -229,19 +181,20 @@ extern "C" {
    * will wait since there can only be one thread executing at
    * any given time. Use RIsBusy() to check whether it is finished
    */
-   void MT4_EXPFUNC RExecuteAsync(char* code)
+   int MT4_EXPFUNC RExecuteAsync_(char* code)
    {
 	   LOGCALL();
 
 	   try
 	   {
 		   RInside::instance().parseEvalQ(code);
+		   return 0;
 	   } catch(std::exception& ex) {
-		   logger::instance() << __FUNCTION__ << "Exception caught: " << ex.what() << std::endl;
-		   throw;
+		   logger::instance() << __FUNCTION__ << " Exception caught: " << ex.what() << std::endl;
+		   return -1;
 	   } catch(...) {
-		   logger::instance() << __FUNCTION__ << "Unknown exception caught" << std::endl;
-		   throw;
+		   logger::instance() << __FUNCTION__ << " Unknown exception caught" << std::endl;
+		   return -1;
 	   }
    }
 
@@ -254,93 +207,98 @@ extern "C" {
    * the output while RExecute() will just execute, wait and
    * ignore all output.
    */
-   void MT4_EXPFUNC RExecute(char* code)
+   int MT4_EXPFUNC RExecute_(char* code)
    {
 	   LOGCALL();
 
 	   try
 	   {
 		   RInside::instance().parseEvalQ(code);
+		   return 0;
 	   } catch(std::exception& ex) {
-		   logger::instance() << __FUNCTION__ << "Exception caught: " << ex.what() << std::endl;
-		   throw;
+		   logger::instance() << __FUNCTION__ << " Exception caught: " << ex.what() << std::endl;
+		   return -1;
 	   } catch(...) {
-		   logger::instance() << __FUNCTION__ << "Unknown exception caught" << std::endl;
-		   throw;
+		   logger::instance() << __FUNCTION__ << " Unknown exception caught" << std::endl;
+		   return -1;
 	   }
    }
 
    /**
    * assign a BOOL to the variable name. In R this type is called "logical"
    */
-   void MT4_EXPFUNC RAssignBOOL(char* variable, BOOL value)
+   int MT4_EXPFUNC RAssignBOOL_(char* variable, BOOL value)
    {
 	   LOGCALL();
 
 	   try
 	   {
 		   RInside::instance()[variable] = bool(value);
+		   return 0;
 	   } catch(std::exception& ex) {
-		   logger::instance() << __FUNCTION__ << "Exception caught: " << ex.what() << std::endl;
-		   throw;
+		   logger::instance() << __FUNCTION__ << " Exception caught: " << ex.what() << std::endl;
+		   return -1;
 	   } catch(...) {
-		   logger::instance() << __FUNCTION__ << "Unknown exception caught" << std::endl;
-		   throw;
+		   logger::instance() << __FUNCTION__ << " Unknown exception caught" << std::endl;
+		   return -1;
 	   }
    }
 
    /**
    * assign an integer to the variable name.
    */
-   void MT4_EXPFUNC RAssignInteger(char* variable, int value)
+   int MT4_EXPFUNC RAssignInteger_(char* variable, int value)
    {
 	   LOGCALL();
 
 	   try
 	   {
 		   RInside::instance()[variable] = value;
+		   return 0;
 	   } catch(std::exception& ex) {
-		   logger::instance() << __FUNCTION__ << "Exception caught: " << ex.what() << std::endl;
-		   throw;
+		   logger::instance() << __FUNCTION__ << " Exception caught: " << ex.what() << std::endl;
+		   return -1;
 	   } catch(...) {
-		   logger::instance() << __FUNCTION__ << "Unknown exception caught" << std::endl;
-		   throw;
+		   logger::instance() << __FUNCTION__ << " Unknown exception caught" << std::endl;
+		   return -1;
 	   }
    }
 
    /**
    * assign a double to the variable name.
    */
-   void MT4_EXPFUNC RAssignDouble(char* variable, double value)
+   int MT4_EXPFUNC RAssignDouble_(char* variable, double value)
    {
 	   LOGCALL();
 	   try
 	   {
 		   RInside::instance()[variable] = value;
+		   return 0;
 	   } catch(std::exception& ex) {
-		   logger::instance() << __FUNCTION__ << "Exception caught: " << ex.what() << std::endl;
-		   throw;
+		   logger::instance() << __FUNCTION__ << " Exception caught: " << ex.what() << std::endl;
+		   return -1;
 	   } catch(...) {
-		   logger::instance() << __FUNCTION__ << "Unknown exception caught" << std::endl;
-		   throw;
+		   logger::instance() << __FUNCTION__ << " Unknown exception caught" << std::endl;
+		   return -1;
 	   }
    }
 
    /**
    * assign a string to the variable namd. In R this type is called "character"
    */
-   void MT4_EXPFUNC RAssignString(char* variable, char* value)
+   int MT4_EXPFUNC RAssignString_(char* variable, char* value)
    {
 	   LOGCALL();
 	   try
 	   {
 		   RInside::instance()[variable] = std::string(value);
+		   return 0;
 	   } catch(std::exception& ex) {
-		   logger::instance() << __FUNCTION__ << "Exception caught: " << ex.what() << std::endl;
-		   throw;
+		   logger::instance() << __FUNCTION__ << " Exception caught: " << ex.what() << std::endl;
+		   return -1;
 	   } catch(...) {
-		   logger::instance() << __FUNCTION__ << "Unknown exception caught" << std::endl;
-		   throw;
+		   logger::instance() << __FUNCTION__ << " Unknown exception caught" << std::endl;
+		   return -1;
 	   }
    }
 
@@ -348,7 +306,7 @@ extern "C" {
    * assign a vector to the variable name. If the size does not match
    * your actual array size then bad things might happen.
    */
-   void MT4_EXPFUNC RAssignVector(char* variable, double* vector, int size)
+   int MT4_EXPFUNC RAssignVector_(char* variable, double* vector, int size)
    {
 	   LOGCALL();
 
@@ -357,12 +315,13 @@ extern "C" {
 		   const std::vector<double> values(vector, &vector[size]);
 
 		   RInside::instance()[variable] = values;
+		   return 0;
 	   } catch(std::exception& ex) {
-		   logger::instance() << __FUNCTION__ << "Exception caught: " << ex.what() << std::endl;
-		   throw;
+		   logger::instance() << __FUNCTION__ << " Exception caught: " << ex.what() << std::endl;
+		   return -1;
 	   } catch(...) {
-		   logger::instance() << __FUNCTION__ << "Unknown exception caught" << std::endl;
-		   throw;
+		   logger::instance() << __FUNCTION__ << " Unknown exception caught" << std::endl;
+		   return -1;
 	   }
    }
 
@@ -372,7 +331,7 @@ extern "C" {
    * recent versions of R a vector of strings does not need any more memory than
    * a factor and it is easier to append new elements to it.
    */
-   void MT4_EXPFUNC RAssignStringVector(char* variable, char* vector[], int size)
+   int MT4_EXPFUNC RAssignStringVector_(char* variable, char* vector[], int size)
    {
 	   LOGCALL();
 
@@ -387,13 +346,14 @@ extern "C" {
 		   }
 
 		   RInside::instance()[variable] = value;
+		   return 0;
 
 	   } catch(std::exception& ex) {
-		   logger::instance() << __FUNCTION__ << "Exception caught: " << ex.what() << std::endl;
-		   throw;
+		   logger::instance() << __FUNCTION__ << " Exception caught: " << ex.what() << std::endl;
+		   return -1;
 	   } catch(...) {
-		   logger::instance() << __FUNCTION__ << "Unknown exception caught" << std::endl;
-		   throw;
+		   logger::instance() << __FUNCTION__ << " Unknown exception caught" << std::endl;
+		   return -1;
 	   }
    }
 
@@ -409,7 +369,7 @@ extern "C" {
    * only use RRowBindVector() to further grow it slowly on the arrival of single new
    * data vectors instead of always sending a new copy of the entire matrix.
    */
-   void MT4_EXPFUNC RAssignMatrix(char* variable, double* matrix, int rows, int cols)
+   int MT4_EXPFUNC RAssignMatrix_(char* variable, double* matrix, int rows, int cols)
    {
 	   try
 	   {
@@ -424,12 +384,13 @@ extern "C" {
 				   mat(i,j) = matrix[index];
 			   }
 		   }
+		   return 0;
 	   } catch(std::exception& ex) {
-		   logger::instance() << __FUNCTION__ << "Exception caught: " << ex.what() << std::endl;
-		   throw;
+		   logger::instance() << __FUNCTION__ << " Exception caught: " << ex.what() << std::endl;
+		   return -1;
 	   } catch(...) {
-		   logger::instance() << __FUNCTION__ << "Unknown exception caught" << std::endl;
-		   throw;
+		   logger::instance() << __FUNCTION__ << " Unknown exception caught" << std::endl;
+		   return -1;
 	   }
 
    }
@@ -439,7 +400,7 @@ extern "C" {
    * variable <- rbind(variable, vector)
    * if the size does not match the actual array size bad things might happen.
    */
-   void MT4_EXPFUNC RAppendMatrixRow(char* variable, double* vector, int size)
+   int MT4_EXPFUNC RAppendMatrixRow_(char* variable, double* vector, int size)
    {
 	   LOGCALL();
 
@@ -449,12 +410,13 @@ extern "C" {
 		   Rcpp::NumericMatrix row();
 		   //std::vector<double> vec(vector,&vector[size]);
 		   //mat = mat + row;
+		   return 0;
 	   } catch(std::exception& ex) {
-		   logger::instance() << __FUNCTION__ << "Exception caught: " << ex.what() << std::endl;
-		   throw;
+		   logger::instance() << __FUNCTION__ << " Exception caught: " << ex.what() << std::endl;
+		   return -1;
 	   } catch(...) {
-		   logger::instance() << __FUNCTION__ << "Unknown exception caught" << std::endl;
-		   throw;
+		   logger::instance() << __FUNCTION__ << " Unknown exception caught" << std::endl;
+		   return -1;
 	   }
 
    }
@@ -462,18 +424,18 @@ extern "C" {
    /**
    * return true if the variable exists, false otherwise.
    */
-   BOOL MT4_EXPFUNC RExists(char* variable)
+   BOOL MT4_EXPFUNC RExists_(char* variable)
    {
 	   LOGCALL();
 	   try
 	   {
 		   return RInside::instance()[variable].exists();
 	   } catch(std::exception& ex) {
-		   logger::instance() << __FUNCTION__ << "Exception caught: " << ex.what() << std::endl;
-		   throw;
+		   logger::instance() << __FUNCTION__ << " Exception caught: " << ex.what() << std::endl;
+		   return -1;
 	   } catch(...) {
-		   logger::instance() << __FUNCTION__ << "Unknown exception caught" << std::endl;
-		   throw;
+		   logger::instance() << __FUNCTION__ << " Unknown exception caught" << std::endl;
+		   return -1;
 	   }
    }
 
@@ -482,18 +444,19 @@ extern "C" {
    * that will evaluate to logical. If it is a vector of logical then only
    * the first element is returned.
    */
-   BOOL MT4_EXPFUNC RGetBool(char* expression)
+   BOOL MT4_EXPFUNC RGetBool_(char* expression, bool* value)
    {
 	   LOGCALL();
 	   try
 	   {
-		   return RInside::instance().parseEval(expression);
+		   *value = RInside::instance().parseEval(expression);
+		   return 0;
 	   } catch(std::exception& ex) {
-		   logger::instance() << __FUNCTION__ << "Exception caught: " << ex.what() << std::endl;
-		   throw;
+		   logger::instance() << __FUNCTION__ << " Exception caught: " << ex.what() << std::endl;
+		   return -1;
 	   } catch(...) {
-		   logger::instance() << __FUNCTION__ << "Unknown exception caught" << std::endl;
-		   throw;
+		   logger::instance() << __FUNCTION__ << " Unknown exception caught" << std::endl;
+		   return -1;
 	   }
    }
 
@@ -502,19 +465,20 @@ extern "C" {
    * that will evaluate to an integer. If it is a floating point it will be
    * rounded, if it is a vector then only the first element will be returned.
    */
-   int MT4_EXPFUNC RGetInteger(char* expression)
+   int MT4_EXPFUNC RGetInteger_(char* expression, int* value)
    {
 	   LOGCALL();
 
 	   try
 	   {
-		   return RInside::instance().parseEval(expression);
+		   *value = RInside::instance().parseEval(expression);
+		   return 0;
 	   } catch(std::exception& ex) {
-		   logger::instance() << __FUNCTION__ << "Exception caught: " << ex.what() << std::endl;
-		   throw;
+		   logger::instance() << __FUNCTION__ << " Exception caught: " << ex.what() << std::endl;
+		   return -1;
 	   } catch(...) {
-		   logger::instance() << __FUNCTION__ << "Unknown exception caught" << std::endl;
-		   throw;
+		   logger::instance() << __FUNCTION__ << " Unknown exception caught" << std::endl;
+		   return -1;
 	   }
    }
 
@@ -523,18 +487,19 @@ extern "C" {
    * that will evaluate to a floating point number, if it is a vector then
    * only the first element is returned.
    */
-   double MT4_EXPFUNC RGetDouble(char* expression)
+   int MT4_EXPFUNC RGetDouble_(char* expression,double *value)
    {
 	   LOGCALL();
 	   try
 	   {
-		   return RInside::instance().parseEval(expression);
+		   *value = RInside::instance().parseEval(expression);
+		   return 0;
 	   } catch(std::exception& ex) {
-		   logger::instance() << __FUNCTION__ << "Exception caught: " << ex.what() << std::endl;
-		   throw;
+		   logger::instance() << __FUNCTION__ << " Exception caught: " << ex.what() << std::endl;
+		   return -1;
 	   } catch(...) {
-		   logger::instance() << __FUNCTION__ << "Unknown exception caught" << std::endl;
-		   throw;
+		   logger::instance() << __FUNCTION__ << " Unknown exception caught" << std::endl;
+		   return -1;
 	   }
    }
 
@@ -545,7 +510,7 @@ extern "C" {
    * array. It will never be bigger than size but might be smaller.
    * warnings are output on debuglevel 1 if the sizes don't match.
    */
-   int MT4_EXPFUNC RGetVector(char* expression, double* vector, int size)
+   int MT4_EXPFUNC RGetVector_(char* expression, double* vector, int* size)
    {
 	   LOGCALL();
 
@@ -553,42 +518,68 @@ extern "C" {
 	   {
 		   std::vector<double> values = RInside::instance().parseEval(expression);
 		   std::copy(values.begin(),values.end(),vector);
-		   return values.size();
+		   *size = values.size();
+		   return 0;
 	   } catch(std::exception& ex) {
-		   logger::instance() << __FUNCTION__ << "Exception caught: " << ex.what() << std::endl;
-		   throw;
+		   logger::instance() << __FUNCTION__ << " Exception caught: " << ex.what() << std::endl;
+		   return -1;
 	   } catch(...) {
-		   logger::instance() << __FUNCTION__ << "Unknown exception caught" << std::endl;
-		   throw;
+		   logger::instance() << __FUNCTION__ << " Unknown exception caught" << std::endl;
+		   return -1;
 	   }
    }
 
-   int MT4_EXPFUNC RGetXTS(char* expression,RateInfo* rates,const int rates_total)
+   int MT4_EXPFUNC RGetXTS_(char* expression,double *rates,unsigned int *times,int *rows,int *cols)
    {
+	   LOGCALL();
+
 	   try
 	   {
+		   logger::instance() << "Getting XTS value " << expression << "-";
+
 		   FinSeries::Xts series = RInside::instance().parseEval(expression);
 
-		   int fetch_num = std::min((size_t)rates_total,series.nrows());
+		   //logger::instance() << "OK" << std::endl;
 
-		   for(int i=0;i<fetch_num;++i)
+		   int fetch_rows = std::min((size_t)*rows,series.nrows());
+		   int fetch_cols = std::min((size_t)*rows,series.ncols());
+
+		   //logger::instance() << "fetch_rows = " << fetch_rows << std::endl;
+		   //logger::instance() << "fetch_cols = " << fetch_cols << std::endl;
+
+		   for(int i=0;i<fetch_rows;++i)
 		   {
-			   rates[i].open = series(i,0);
-			   rates[i].high = series(i,1);
-			   rates[i].low = series(i,2);
-			   rates[i].close = series(i,3);
-			   rates[i].vol = series(i,4);
-			   rates[i].ctm = series.index(i);
+			   for(int j=0;j<fetch_cols;++j)
+			   {
+				   int index = i * series.ncols() + j;
+
+				   double val = series(i,j);
+
+				   //logger::instance() << "val = " << val << std::endl;
+				   rates[index] = val;
+			   }
+			   times[i] = series.index(i);
 		   }
 
-		   return fetch_num;
+		   //logger::instance() << "Values fetched OK" << std::endl;
 
+		   *rows = fetch_rows;
+		   *cols = fetch_cols;
+
+		   //logger::instance() << "cols/rows updated" << std::endl;
+
+		   //series.print();
+
+		   //logger::instance() << "done printing" << std::endl;
+
+
+		   return 0;
 	   } catch(std::exception& ex) {
-		   logger::instance() << __FUNCTION__ << "Exception caught: " << ex.what() << std::endl;
-		   throw;
+		   logger::instance() << __FUNCTION__ << " Exception caught: " << ex.what() << std::endl;
+		   return -1;
 	   } catch(...) {
-		   logger::instance() << __FUNCTION__ << "Unknown exception caught" << std::endl;
-		   throw;
+		   logger::instance() << __FUNCTION__ << " Unknown exception caught" << std::endl;
+		   return -1;
 	   }
    }
 
@@ -597,12 +588,12 @@ extern "C" {
    * do a print(expression) for debugging purposes. The outout will be
    * sent to the debug monitor on debuglevel 0.
    */
-   void MT4_EXPFUNC RPrint(char* expression)
+   void MT4_EXPFUNC RPrint_(char* expression)
    {
 	   logger::instance() << expression << std::endl;
    }
 
-   void MT4_EXPFUNC RAssignXTS(char* expression,const RateInfo* rates,const int rates_total)
+   int MT4_EXPFUNC RAssignXTS_(char* expression,const RateInfo* rates,const int rates_total)
    {
 	   LOGCALL();
 
@@ -622,7 +613,7 @@ extern "C" {
 		   volumes.resize(rates_total);
 		   times.resize(rates_total);
 
-		   logger::instance() << "Assigning " << rates_total << " candles to XTS object " << expression << std::endl;
+		   //logger::instance() << "Assigning " << rates_total << " candles to XTS object " << expression << std::endl;
 
 		   for(int i=0;i<rates_total;++i)
 		   {
@@ -631,6 +622,11 @@ extern "C" {
 			   lows[i] = rates[i].low;
 			   closes[i] = rates[i].close;
 			   volumes[i] = rates[i].vol;
+
+			   //logger::instance() << "i= " << i << std::endl;
+			   double open = rates[i].open;
+			   //logger::instance() << "fetched OK " << open << std::endl;
+
 			   times[i] = rates[i].ctm;
 		   }
 
@@ -638,12 +634,13 @@ extern "C" {
 
 		   RInside::instance()[expression] = series;
 
+		   return 0;
 	   } catch(std::exception& ex) {
-		   logger::instance() << __FUNCTION__ << "Exception caught: " << ex.what() << std::endl;
-		   throw;
+		   logger::instance() << __FUNCTION__ << " Exception caught: " << ex.what() << std::endl;
+		   return -1;
 	   } catch(...) {
-		   logger::instance() << __FUNCTION__ << "Unknown exception caught" << std::endl;
-		   throw;
+		   logger::instance() << __FUNCTION__ << " Unknown exception caught" << std::endl;
+		   return -1;
 	   }
    }
 

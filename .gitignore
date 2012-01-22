@@ -1,0 +1,5 @@
+
+pkg.Rcheck
+pkg/src/*.o
+pkg/src/*.dll
+pkg/inst/lib/i386/*
