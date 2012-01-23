@@ -4,8 +4,8 @@ Version: 0.1
 Date: 2012-01-11
 Author: James Bates
 Maintainer: James Bates <james@jamesbates.net>
-Description: MQL functions to embed R in Metatrader indicators and experts
-Depends: R (>= 2.10.0), Rcpp (>= 0.8.5), RInside (>= 0.2.5)
+Description: MQL functions to embed R in Metatrader indicators and experts. This work has been based upon the original MT4R project by Bernd Kreuss (AKA 7Bit)
+Depends: R (>= 2.10.0), Rcpp (>= 0.8.5), RInside (>= 0.2.5) 
 LinkingTo: Rcpp
 URL: 
 License: GPL (>= 2)
