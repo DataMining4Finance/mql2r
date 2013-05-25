@@ -1,0 +1,60 @@
+## -*- mode: Makefile; tab-width: 8 -*- 
+##
+## Copyright (C) 2010 Dirk Eddelbuettel and Romain Francois
+##
+## This file is part of RInside.
+##
+## RInside is free software: you can redistribute it and/or modify it
+## under the terms of the GNU General Public License as published by
+## the Free Software Foundation, either version 2 of the License, or
+## (at your option) any later version.
+##
+## RInside is distributed in the hope that it will be useful, but
+## WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with RInside.  If not, see <http://www.gnu.org/licenses/>.
+
+USERLIBST=libMQL2R.a
+USERLIB=libMQL2R.dll
+USERDIR=../inst/lib
+
+PKG_CPPFLAGS += -I../inst/include/
+
+RCPPFLAGS := 		$(shell $(R_HOME)/bin/R CMD config --cppflags)
+RLDFLAGS := 		$(shell $(R_HOME)/bin/R CMD config --ldflags)
+
+RCPPINCL := 		$(shell echo 'Rcpp:::CxxFlags()' | $(R_HOME)/bin/R --vanilla --slave)
+RCPPLIBS := 		$(shell echo 'Rcpp:::LdFlags()'  | $(R_HOME)/bin/R --vanilla --slave)
+
+RINSIDEINCL := 		$(shell echo 'RInside:::CxxFlags()' | $(R_HOME)/bin/R --vanilla --slave)
+RINSIDELIBS := 		$(shell echo 'RInside:::LdFlags()'  | $(R_HOME)/bin/R --vanilla --slave)
+
+PKG_CPPFLAGS += -I"$(BOOST_HOME)" "$(RINSIDEINCL)"
+PKG_LIBS = $(RINSIDELIBS) $(RCPPLIBS)
+
+all:	$(SHLIB) userLibrary
+
+userLibrary: $(USERLIBST) $(USERLIB)
+	-@if test ! -e $(USERDIR)$(R_ARCH); then mkdir -p $(USERDIR)$(R_ARCH); fi
+	cp $(USERLIB) $(USERDIR)$(R_ARCH)
+	cp $(USERLIBST) $(USERDIR)$(R_ARCH)
+	rm $(USERLIBST)
+
+#$(OBJECTS): *.cpp
+#	$(CXX) $(PKG_CPPFLAGS) $^
+	
+$(USERLIBST): $(OBJECTS)
+	$(AR) qc $(USERLIBST) $^
+	@if test -n "$(RANLIB)"; then $(RANLIB) $(USERLIBST); fi
+
+$(USERLIB): $(OBJECTS)
+	$(CXX) -Wl,--enable-auto-import,--kill-at -shared -o $(USERLIB) $^ $(ALL_LIBS) -lws2_32
+
+.PHONY: all clean userLibrary
+
+clean:
+	rm -f $(OBJECTS) $(SHLIB) $(USERLIBST) $(USERLIB)
+
